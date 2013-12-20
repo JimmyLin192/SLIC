@@ -46,9 +46,12 @@ int validate (int value, int lower, int upper)
  * INPUT
  *   imgLab: image matrix in EILAB format
  *   k: number of superpixel to generate
+ * RETURN
+ *   label: matrix indicating the superpixel each pixel resides in
  */
-void slic (cv::Mat imgLab, const int k, double threshold) 
+cv::Mat slic (cv::Mat imgLab, const int k, double threshold) 
 {
+    // height and width of the provided image
     const int H = imgLab.rows;
     const int W = imgLab.cols;
 
@@ -74,9 +77,72 @@ void slic (cv::Mat imgLab, const int k, double threshold)
         update_centroid (ccs[i], l, a, b, x, y);
     }
 
-    // TODO: move cluster center to the lowest gradient position
-     
+    // Compute gradient magnitude of the given image
+    cv::Mat gradient = cv::Mat (H, W, CV_64F, 0.0);
+    for (int y = 0; y < H; y++) 
+    {
+        for (int x = 0; x < W; x++)
+        {
+            double gradientx = 0.0, gradienty = 0.0;
+            double l = imgLab.at<double>(y, x)[0];
+            double a = imgLab.at<double>(y, x)[1];
+            double b = imgLab.at<double>(y, x)[2];
+            if (x - 1 > 0) {
+                double tmpl = imgLab.at<double>(y, x-1)[0];
+                double tmpa = imgLab.at<double>(y, x-1)[1];
+                double tmpb = imgLab.at<double>(y, x-1)[2];
+                gradientx += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
+            } else gradientx = INFINITY;
 
+            if (x + 1 < W) {
+                double tmpl = imgLab.at<double>(y, x+1)[0];
+                double tmpa = imgLab.at<double>(y, x+1)[1];
+                double tmpb = imgLab.at<double>(y, x+1)[2];
+                gradientx += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
+            } else gradientx = INFINITY;
+
+            if (y - 1 > 0) {
+                double tmpl = imgLab.at<double>(y-1, x)[0];
+                double tmpa = imgLab.at<double>(y-1, x)[1];
+                double tmpb = imgLab.at<double>(y-1, x)[2];
+                gradienty += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
+            } else gradienty = INFINITY;
+
+            if (y + 1 < H) {
+                double tmpl = imgLab.at<double>(y-1, x)[0];
+                double tmpa = imgLab.at<double>(y-1, x)[1];
+                double tmpb = imgLab.at<double>(y-1, x)[2];
+                gradienty += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
+            } else gradienty = INFINITY;
+            
+        }
+    }
+    // Move cluster center to the lowest gradient position
+    n = 3;
+    for (int i = 0; i < k; i ++) 
+    {
+        double min_gradient = INFINITY;
+        int min_x = -1;
+        int min_y = -1;
+        for (int y = validate(y-n, 0, H); y < validate(y+n, 0, H); y++)
+        {
+            for (int x = validate(x-n, 0, W); x < validate(x+n, 0, W); x++)
+            {
+                double g = gradient.at<double>(y, x);
+                if (g < min_gradient) 
+                {
+                    min_x = x;
+                    min_y = y;
+                    min_gradient = g;
+                }
+            }
+        }
+        double min_l = imgLab.at<double>(min_y, min_x)[0];
+        double min_a = imgLab.at<double>(min_y, min_x)[1];
+        double min_b = imgLab.at<double>(min_y, min_x)[2];
+        update_centroid(ccs[i], min_x, min_y, min_l, min_a, min_b);
+    }
+    
     // label matrix indicate the cluster number one pixel is in
     cv::Mat label = cv::Mat (H, W, CV_8U, -1);
     // distance matrix represents the distance between one pixel and its
@@ -95,9 +161,9 @@ void slic (cv::Mat imgLab, const int k, double threshold)
             double b = ccs[i]->b;
 
             // look around its 2S x 2S region
-            for (int tmpx = validate(x-S, 0, W); tmpx < validate(x+S, 0, W); tmpx++) 
+            for (int tmpy = validate(y-S, 0, H); tmpy < validate(y+S, 0, H); tmpy++) 
             {
-                for (int tmpy = validate(y-S, 0, H), tmpy < validate(y+S, 0, H), tmpy++) {
+                for (int tmpx = validate(x-S, 0, W), tmpx < validate(x+S, 0, W), tmpx++) {
                     double tmpl = imgLab.at<double>(tmpy, tmpx)[0];
                     double tmpa = imgLab.at<double>(tmpy, tmpx)[1];
                     double tmpb = imgLab.at<double>(tmpy, tmpx)[2];
@@ -175,4 +241,5 @@ void slic (cv::Mat imgLab, const int k, double threshold)
         // Stop iteration until specified precision is reached
         if (E < threshold) break;
     }
+    return label;
 }
