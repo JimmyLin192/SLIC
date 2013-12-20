@@ -52,8 +52,7 @@ void slic (cv::Mat imgLab, const int k)
     // randomly pick up initial cluster center
     const int S = sqrt(H * W / k);  // grid size
     const int gridPerRow = W / S;
-    vector<centroid *> ccs;
-    ccs.resize (k, NULL);
+    vector<centroid *> ccs = vector(k, NULL);
     for (int i = 0; i < k; i ++) {
         // randomize the position of centroid
         int x, y;
@@ -107,15 +106,38 @@ void slic (cv::Mat imgLab, const int k)
                 }
 
             }
-
-            // TODO: compute new cluster center
-            for () {
-
-
-            }
-            // TODO: compute residual error E
-
         }
+
+        // TODO: compute new cluster center
+        vector<int> count = vector (k, 0);
+        vector<double> sumx = vector (k, 0.0);
+        vector<double> sumy = vector (k, 0.0);
+        for (int y = 0; y < H; y++) 
+        {
+            for (int x = 0; x < W; x++)
+            {
+                unsigned clusterIdx = label.at<unsigned>(y, x);
+                count[clusterIdx] ++;
+                sumx[clusterIdx] += x;
+                sumy[clusterIdx] += y;
+            }
+        }
+
+        vector<centroid *> newccs = vector (k, NULL);
+        for (int i = 0; i < k; i ++) 
+        {
+            newccs[i] = (struct centroid *) malloc (sizeof (struct centroid));
+            int x = (int) (sumx[i] / count[i]);
+            int y = (int) (sumy[i] / count[i]);
+            double l = imgLab.at<double>(y, x)[0];
+            double a = imgLab.at<double>(y, x)[1];
+            double b = imgLab.at<double>(y, x)[2];
+            update_centroid(newccs[i], x, y, l, a, b);
+        }
+
+        // TODO: compute residual error E
+        
+        // TODO: free all ccs and reassign new to previvous
 
         // stop iteration until specified precision is reached
         if (E < threshold) break;
