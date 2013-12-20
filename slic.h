@@ -44,7 +44,7 @@ int validate (int value, int lower, int upper)
  *   imgLab: image matrix in EILAB format
  *   k: number of superpixel to generate
  */
-void slic (cv::Mat imgLab, const int k) 
+void slic (cv::Mat imgLab, const int k, double threshold) 
 {
     const int H = imgLab.rows;
     const int W = imgLab.cols;
