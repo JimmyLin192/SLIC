@@ -19,6 +19,7 @@
 #include "drwnIO.h"
 #include "drwnML.h"
 #include "drwnVision.h"
+
 #include "slic.h"
 
 using namespace std;
@@ -40,8 +41,8 @@ int main (int argc, char * argv [])
 {
    bool bVisualize = false;
 
-   DRWN_BEGIN_CMDLINE_PROCESSING (argc, argv);
-   DRWN_CMDLINE_BOOL_OPTION("-x", bVisualize);
+   DRWN_BEGIN_CMDLINE_PROCESSING (argc, argv)
+        DRWN_CMDLINE_BOOL_OPTION("-x", bVisualize)
    DRWN_END_CMDLINE_PROCESSING(usage());
 
 
@@ -53,17 +54,19 @@ int main (int argc, char * argv [])
    char * inputDir = DRWN_CMDLINE_ARGV[0]; 
    char * outputDir = DRWN_CMDLINE_ARGV[1];
 
-   DRWN_ASSERT_MSG (drwnDirExists(imgDir), "image directory " << imgDir 
+   DRWN_ASSERT_MSG (drwnDirExists(inputDir), "image directory " << inputDir 
+           << " does not exist");
+   DRWN_ASSERT_MSG (drwnDirExists(outputDir), "image directory " << outputDir 
            << " does not exist");
 
-   vector<string> baseNames = drwnDirectoryListing(imgDir, ".jpg", false, false);
+   vector<string> baseNames = drwnDirectoryListing(inputDir, ".jpg", false, false);
    DRWN_LOG_MESSAGE("Loading " << baseNames.size() << " images and labels...");
 
-   drwnClassifierDataset dataset;
+   //drwnClassifierDataset dataset;
 
    for (unsigned i = 0; i < baseNames.size(); i++) 
    {
-        String imgName = baseNames[i] + ".jpg";
+        string imgName = baseNames[i] + ".jpg";
         DRWN_LOG_STATUS ("...processing image " << baseNames[i]);
 
         // read given image
@@ -75,7 +78,7 @@ int main (int argc, char * argv [])
         const int W = img.cols;
         // convert to needed format
         cv::Mat imgLab;
-        cv::cvtColor(imgRgb, imgLab, cv::CV_BGR2Lab);
+        cv::cvtColor(img, imgLab, CV_BGR2Lab);
 
         cv::Mat label = slic (imgLab, 50, 1);
         for (int y = 0; y < H; y ++) 
@@ -90,11 +93,12 @@ int main (int argc, char * argv [])
                     slabel != label.at<unsigned>(y-1, x) ||
                     slabel != label.at<unsigned>(y+1, x) ) 
                 {
-                    imgseg.at<double>(y,x) = vec3b(0, 0, 0);
+                    imgseg.at<cv::Vec3b>(y,x) = cv::Vec3b(0, 0, 0);
                 }
             }
         }
 
+        /*
         if (bVisualize)
         {
             IplImage cvimg = (IplImage) img;
@@ -106,6 +110,8 @@ int main (int argc, char * argv [])
             drwnShowDebuggingImage(canvasseg, "image", false);
             cvReleaseImage(&canvasseg);
         }
+        */
+        cv::imwrite(outputDir+imgName, imgseg);
 
    }
 }
