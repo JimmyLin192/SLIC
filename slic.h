@@ -21,7 +21,7 @@ struct centroid
 {
     int x, y;
     double l, a, b;
-}
+};
 
 /* Update the centroid */
 void update_centroid (struct centroid * c, double l, double a, double b, int x, int y)
@@ -58,19 +58,19 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
     // randomly pick up initial cluster center
     const int S = sqrt(H * W / k);  // grid size
     const int gridPerRow = W / S;
-    vector<centroid *> ccs = vector(k, NULL);
+    vector<centroid *> ccs = vector<centroid *> (k, NULL);
     for (int i = 0; i < k; i ++) {
         // randomize the position of centroid
         int x, y;
         double l, a, b;
-        gridx = i % gridPerRow;
-        gridy = i / gridPerRow;
+        int gridx = i % gridPerRow;
+        int gridy = i / gridPerRow;
         x = (rand() % S) + gridx * S;
         y = (rand() % S) + gridy * S;
         // acquire lab color of the derived centroid
-        l = imgLab.at<double>(y, x)[0];
-        a = imgLab.at<double>(y, x)[1];
-        b = imgLab.at<double>(y, x)[2];
+        l = imgLab.at<Vec3b>(y, x)[0];
+        a = imgLab.at<Vec3b>(y, x)[1];
+        b = imgLab.at<Vec3b>(y, x)[2];
         // create centroid object
         ccs[i] = (struct centroid *) malloc (sizeof (struct centroid));
         // update the centroid
@@ -84,41 +84,41 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
         for (int x = 0; x < W; x++)
         {
             double gradientx = 0.0, gradienty = 0.0;
-            double l = imgLab.at<double>(y, x)[0];
-            double a = imgLab.at<double>(y, x)[1];
-            double b = imgLab.at<double>(y, x)[2];
+            double l = imgLab.at<Vec3b>(y, x)[0];
+            double a = imgLab.at<Vec3b>(y, x)[1];
+            double b = imgLab.at<Vec3b>(y, x)[2];
             if (x - 1 > 0) {
-                double tmpl = imgLab.at<double>(y, x-1)[0];
-                double tmpa = imgLab.at<double>(y, x-1)[1];
-                double tmpb = imgLab.at<double>(y, x-1)[2];
+                double tmpl = imgLab.at<Vec3b>(y, x-1)[0];
+                double tmpa = imgLab.at<Vec3b>(y, x-1)[1];
+                double tmpb = imgLab.at<Vec3b>(y, x-1)[2];
                 gradientx += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
             } else gradientx = INFINITY;
 
             if (x + 1 < W) {
-                double tmpl = imgLab.at<double>(y, x+1)[0];
-                double tmpa = imgLab.at<double>(y, x+1)[1];
-                double tmpb = imgLab.at<double>(y, x+1)[2];
+                double tmpl = imgLab.at<Vec3b>(y, x+1)[0];
+                double tmpa = imgLab.at<Vec3b>(y, x+1)[1];
+                double tmpb = imgLab.at<Vec3b>(y, x+1)[2];
                 gradientx += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
             } else gradientx = INFINITY;
 
             if (y - 1 > 0) {
-                double tmpl = imgLab.at<double>(y-1, x)[0];
-                double tmpa = imgLab.at<double>(y-1, x)[1];
-                double tmpb = imgLab.at<double>(y-1, x)[2];
+                double tmpl = imgLab.at<Vec3b>(y-1, x)[0];
+                double tmpa = imgLab.at<Vec3b>(y-1, x)[1];
+                double tmpb = imgLab.at<Vec3b>(y-1, x)[2];
                 gradienty += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
             } else gradienty = INFINITY;
 
             if (y + 1 < H) {
-                double tmpl = imgLab.at<double>(y-1, x)[0];
-                double tmpa = imgLab.at<double>(y-1, x)[1];
-                double tmpb = imgLab.at<double>(y-1, x)[2];
+                double tmpl = imgLab.at<Vec3b>(y-1, x)[0];
+                double tmpa = imgLab.at<Vec3b>(y-1, x)[1];
+                double tmpb = imgLab.at<Vec3b>(y-1, x)[2];
                 gradienty += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
             } else gradienty = INFINITY;
             
         }
     }
     // Move cluster center to the lowest gradient position
-    n = 3;
+    int n = 3;
     for (int i = 0; i < k; i ++) 
     {
         double min_gradient = INFINITY;
@@ -137,9 +137,9 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
                 }
             }
         }
-        double min_l = imgLab.at<double>(min_y, min_x)[0];
-        double min_a = imgLab.at<double>(min_y, min_x)[1];
-        double min_b = imgLab.at<double>(min_y, min_x)[2];
+        double min_l = imgLab.at<Vec3b>(min_y, min_x)[0];
+        double min_a = imgLab.at<Vec3b>(min_y, min_x)[1];
+        double min_b = imgLab.at<Vec3b>(min_y, min_x)[2];
         update_centroid(ccs[i], min_x, min_y, min_l, min_a, min_b);
     }
     
@@ -163,13 +163,13 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
             // look around its 2S x 2S region
             for (int tmpy = validate(y-S, 0, H); tmpy < validate(y+S, 0, H); tmpy++) 
             {
-                for (int tmpx = validate(x-S, 0, W), tmpx < validate(x+S, 0, W), tmpx++) {
-                    double tmpl = imgLab.at<double>(tmpy, tmpx)[0];
-                    double tmpa = imgLab.at<double>(tmpy, tmpx)[1];
-                    double tmpb = imgLab.at<double>(tmpy, tmpx)[2];
+                for (int tmpx = validate(x-S, 0, W); tmpx < validate(x+S, 0, W); tmpx++) {
+                    double tmpl = imgLab.at<Vec3b>(tmpy, tmpx)[0];
+                    double tmpa = imgLab.at<Vec3b>(tmpy, tmpx)[1];
+                    double tmpb = imgLab.at<Vec3b>(tmpy, tmpx)[2];
 
                     double color_distance = sqrt (pow(tmpl - l, 2.0) +
-                            pow(tmpa - a, 2.0) + pow(tmpb, 2.0)); 
+                            pow(tmpa - a, 2.0) + pow(tmpb - b, 2.0)); 
                     double spatial_distance = sqrt (pow(tmpx - x, 2.0) +
                             pow(tmpy - y, 2.0));
 
@@ -188,12 +188,12 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
         }
 
         // Compute new cluster center by taking the mean of each dimension
-        vector<int> count = vector (k, 0);
-        vector<double> sumx = vector (k, 0.0);
-        vector<double> sumy = vector (k, 0.0);
-        vector<double> suml = vector (k, 0.0);
-        vector<double> suma = vector (k, 0.0);
-        vector<double> sumb = vector (k, 0.0);
+        vector<int> count = vector<int> (k, 0);
+        vector<double> sumx = vector<double> (k, 0.0);
+        vector<double> sumy = vector<double> (k, 0.0);
+        vector<double> suml = vector<double> (k, 0.0);
+        vector<double> suma = vector<double> (k, 0.0);
+        vector<double> sumb = vector<double> (k, 0.0);
 
         for (int y = 0; y < H; y++) 
         {
@@ -203,13 +203,13 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
                 count[clusterIdx] ++;
                 sumx[clusterIdx] += x;
                 sumy[clusterIdx] += y;
-                suml[clusterIdx] += l;
-                suma[clusterIdx] += a;
-                sumb[clusterIdx] += b;
+                suml[clusterIdx] += imgLab.at<Vec3b>(y,x)[0];
+                suma[clusterIdx] += imgLab.at<Vec3b>(y,x)[1];
+                sumb[clusterIdx] += imgLab.at<Vec3b>(y,x)[2];
             }
         }
 
-        vector<centroid *> newccs = vector (k, NULL);
+        vector<centroid *> newccs = vector<centroid *> (k, NULL);
         for (int i = 0; i < k; i ++) 
         {
             newccs[i] = (struct centroid *) malloc (sizeof (struct centroid));
@@ -226,11 +226,11 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
         for (int i = 0; i < k; i ++) 
         {
             double error = 0.0;
-            error += (ccs[i]->x - newccs[i]->x)^2;   
-            error += (ccs[i]->y - newccs[i]->y)^2;   
-            error += (ccs[i]->l - newccs[i]->l)^2;   
-            error += (ccs[i]->a - newccs[i]->a)^2;   
-            error += (ccs[i]->b - newccs[i]->b)^2;   
+            error += pow((ccs[i]->x - newccs[i]->x), 2.0);   
+            error += pow((ccs[i]->y - newccs[i]->y), 2.0);   
+            error += pow((ccs[i]->l - newccs[i]->l), 2.0);   
+            error += pow((ccs[i]->a - newccs[i]->a), 2.0);   
+            error += pow((ccs[i]->b - newccs[i]->b), 2.0);   
             E += error;
         }
         E /= k;
