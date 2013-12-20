@@ -68,19 +68,44 @@ int main (int argc, char * argv [])
 
         // read given image
         cv::Mat img = cv::imread(string(inputDir) + DRWN_DIRSEP + imgName);
+        // resulted image
+        cv::Mat imgseg = cv::Mat(img);
+        // parameters
+        const int H = img.rows;
+        const int W = img.cols;
         // convert to needed format
         cv::Mat imgLab;
         cv::cvtColor(imgRgb, imgLab, cv::CV_BGR2Lab);
 
-        slic ();
-        double b = imgLab.at<double>(y, x)[2];
-
-        if (bVisualize) 
+        cv::Mat label = slic (imgLab, 50, 1);
+        for (int y = 0; y < H; y ++) 
         {
-
-
+            for (int x = 0; x < W; x ++)
+            {
+                unsigned slabel = label.at<unsigned>(y, x);
+                if (x - 1 < 0 || x + 1 > W || y - 1 < 0 || y + 1 > H)
+                    continue;
+                if (slabel != label.at<unsigned>(y, x-1) ||
+                    slabel != label.at<unsigned>(y, x+1) ||
+                    slabel != label.at<unsigned>(y-1, x) ||
+                    slabel != label.at<unsigned>(y+1, x) ) 
+                {
+                    imgseg.at<double>(y,x) = vec3b(0, 0, 0);
+                }
+            }
         }
 
+        if (bVisualize)
+        {
+            IplImage cvimg = (IplImage) img;
+            IplImage *canvas = cvCloneImage(&cvimg);
+            drwnShowDebuggingImage(canvas, "image", false);
+            cvReleaseImage(&canvas);
+            IplImage cvimgseg = (IplImage) imgseg;
+            IplImage *canvasseg = cvCloneImage(&cvimgseg);
+            drwnShowDebuggingImage(canvasseg, "image", false);
+            cvReleaseImage(&canvasseg);
+        }
 
    }
 }

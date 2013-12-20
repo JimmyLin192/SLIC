@@ -233,6 +233,7 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
             error += (ccs[i]->b - newccs[i]->b)^2;   
             E += error;
         }
+        E /= k;
         
         // Free all ccs and reassign new to previous
         for (int i = 0; i < k; i ++) free (ccs[i]);
