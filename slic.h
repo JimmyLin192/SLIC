@@ -59,6 +59,7 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
     const int S = sqrt(H * W / k);  // grid size
     const int gridPerRow = W / S;
     vector<centroid *> ccs = vector<centroid *> (k, NULL);
+
     for (int i = 0; i < k; i ++) {
         // randomize the position of centroid
         int x, y;
@@ -76,6 +77,8 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
         // update the centroid
         update_centroid (ccs[i], l, a, b, x, y);
     }
+
+    cout << "Randomly pick up centroid.." << endl;
 
     // Compute gradient magnitude of the given image
     cv::Mat gradient = cv::Mat (H, W, CV_64F, 0.0);
@@ -114,11 +117,15 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
                 double tmpb = imgLab.at<Vec3b>(y-1, x)[2];
                 gradienty += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
             } else gradienty = INFINITY;
-            
+            if (gradientx == INFINITY || gradienty == INFINITY)
+                gradient.at<double>(y, x) = INFINITY;
+            else
+                gradient.at<double>(y, x) = sqrt(pow(gradientx, 2.0) + pow(gradienty, 2.0));
         }
     }
+    /*
     // Move cluster center to the lowest gradient position
-    int n = 3;
+    int n = 1;
     for (int i = 0; i < k; i ++) 
     {
         double min_gradient = INFINITY;
@@ -140,8 +147,15 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
         double min_l = imgLab.at<Vec3b>(min_y, min_x)[0];
         double min_a = imgLab.at<Vec3b>(min_y, min_x)[1];
         double min_b = imgLab.at<Vec3b>(min_y, min_x)[2];
+        cout << "i: " << i 
+             << " (" << ccs[i]->x << "," << ccs[i]->y << ")" 
+             << " (" << min_x << "," << min_y << ")" 
+             << endl;
         update_centroid(ccs[i], min_x, min_y, min_l, min_a, min_b);
     }
+    */
+
+    cout << "Move the centroid to the lowest gradient position" << endl;
     
     // label matrix indicate the cluster number one pixel is in
     cv::Mat label = cv::Mat (H, W, CV_8U, -1);
@@ -149,6 +163,7 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
     // centroid
     cv::Mat distance = cv::Mat (H, W, CV_64F, INFINITY);
 
+    int iter = 1;
     while (true) 
     {
         for (int i = 0; i < k; i ++)
@@ -179,8 +194,9 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
 
                     // distance is smaller, update the centroid it belong to
                     if (D < distance.at<double>(tmpy, tmpx)) {
+                        // cout << "comparison: (" << D << ", " << distance.at<double>(tmpy, tmpx) <<")" << endl;
                         distance.at<double>(tmpy, tmpx) = D;
-                        label.at<unsigned>(tmpy, tmpx) = k;
+                        label.at<unsigned>(tmpy, tmpx) = i;
                     }
                 }
 
@@ -188,7 +204,7 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
         }
 
         // Compute new cluster center by taking the mean of each dimension
-        vector<int> count = vector<int> (k, 0);
+        vector<unsigned> count = vector<unsigned> (k, 0);
         vector<double> sumx = vector<double> (k, 0.0);
         vector<double> sumy = vector<double> (k, 0.0);
         vector<double> suml = vector<double> (k, 0.0);
@@ -200,6 +216,10 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
             for (int x = 0; x < W; x++)
             {
                 unsigned clusterIdx = label.at<unsigned>(y, x);
+                //cout << "clusterIdx: " << clusterIdx << endl;
+                if (clusterIdx > k) {
+                    continue;
+                }
                 count[clusterIdx] ++;
                 sumx[clusterIdx] += x;
                 sumy[clusterIdx] += y;
@@ -208,6 +228,13 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
                 sumb[clusterIdx] += imgLab.at<Vec3b>(y,x)[2];
             }
         }
+
+        /*
+        for (int i = 0; i < k; i ++)
+        {
+            cout << "i = " << i << ", count = " << count[i] << endl;
+        }
+        */
 
         vector<centroid *> newccs = vector<centroid *> (k, NULL);
         for (int i = 0; i < k; i ++) 
@@ -239,6 +266,7 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
         for (int i = 0; i < k; i ++) free (ccs[i]);
         ccs = newccs;
 
+        cout << "Iteration: " << (iter++) << ", error: " << E << endl;
         // Stop iteration until specified precision is reached
         if (E < threshold) break;
     }

@@ -10,9 +10,7 @@
 #include "Eigen/Core"
 
 // opencv library header
-#include "cv.h"
-#include "cxcore.h"
-#include "highgui.h"
+#include "cv.h" #include "cxcore.h" #include "highgui.h"
 
 // darwin library header
 #include "drwnBase.h"
@@ -62,17 +60,18 @@ int main (int argc, char * argv [])
    vector<string> baseNames = drwnDirectoryListing(inputDir, ".jpg", false, false);
    DRWN_LOG_MESSAGE("Loading " << baseNames.size() << " images and labels...");
 
-   //drwnClassifierDataset dataset;
+   drwnClassifierDataset dataset;
 
    for (unsigned i = 0; i < baseNames.size(); i++) 
    {
         string imgName = baseNames[i] + ".jpg";
-        DRWN_LOG_STATUS ("...processing image " << baseNames[i]);
+        DRWN_LOG_STATUS ("...processing image " << imgName);
+        cout << "Processing image " << imgName << endl;
 
         // read given image
         cv::Mat img = cv::imread(string(inputDir) + DRWN_DIRSEP + imgName);
-        // resulted image
-        cv::Mat imgseg = cv::Mat(img);
+        cout << "Read image" << endl;
+       
         // parameters
         const int H = img.rows;
         const int W = img.cols;
@@ -80,12 +79,21 @@ int main (int argc, char * argv [])
         cv::Mat imgLab;
         cv::cvtColor(img, imgLab, CV_BGR2Lab);
 
+        cout << "Create LAB image" << endl;
+
         cv::Mat label = slic (imgLab, 50, 1);
+        cout << "slic done" << endl;
+
+        cv::imwrite(outputDir+imgName, img);
+        cout << "write original image done.." << endl;
+
+        /*
         for (int y = 0; y < H; y ++) 
         {
             for (int x = 0; x < W; x ++)
             {
                 unsigned slabel = label.at<unsigned>(y, x);
+                cout << "("  << x << ", " << y << ")" << "slabel: " << slabel << endl;
                 if (x - 1 < 0 || x + 1 > W || y - 1 < 0 || y + 1 > H)
                     continue;
                 if (slabel != label.at<unsigned>(y, x-1) ||
@@ -93,11 +101,15 @@ int main (int argc, char * argv [])
                     slabel != label.at<unsigned>(y-1, x) ||
                     slabel != label.at<unsigned>(y+1, x) ) 
                 {
-                    imgseg.at<cv::Vec3b>(y,x) = cv::Vec3b(0, 0, 0);
+                    img.at<cv::Vec3b>(y,x)[0] = 0;
+                    img.at<cv::Vec3b>(y,x)[1] = 0;
+                    img.at<cv::Vec3b>(y,x)[2] = 0;
                 }
             }
         }
+        */
 
+        cout << "slic received done.." << endl;
         /*
         if (bVisualize)
         {
@@ -111,7 +123,8 @@ int main (int argc, char * argv [])
             cvReleaseImage(&canvasseg);
         }
         */
-        cv::imwrite(outputDir+imgName, imgseg);
-
+        cv::imwrite(string(outputDir) + DRWN_DIRSEP +
+                baseNames[i] + "(seg)" + ".jpg", img);
+        cout << "imwrite done.." << endl;
    }
 }
