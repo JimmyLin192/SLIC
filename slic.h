@@ -117,6 +117,7 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
                 double tmpb = imgLab.at<Vec3b>(y-1, x)[2];
                 gradienty += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
             } else gradienty = INFINITY;
+
             if (gradientx == INFINITY || gradienty == INFINITY)
                 gradient.at<double>(y, x) = INFINITY;
             else
@@ -230,6 +231,7 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
         }
 
         /*
+        // statistics about each superpixel
         for (int i = 0; i < k; i ++)
         {
             cout << "i = " << i << ", count = " << count[i] << endl;
@@ -263,12 +265,18 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold)
         E /= k;
         
         // Free all ccs and reassign new to previous
-        for (int i = 0; i < k; i ++) free (ccs[i]);
-        ccs = newccs;
+        for (int i = 0; i < k; i ++) 
+        {
+            free (ccs[i]);
+            ccs[i] = newccs[i];
+        }
 
         cout << "Iteration: " << (iter++) << ", error: " << E << endl;
         // Stop iteration until specified precision is reached
         if (E < threshold) break;
     }
+
+    for (int i = 0; i < k; i++) free(ccs[i]);
+
     return label;
 }

@@ -1,8 +1,6 @@
 // c++ standard headers
 #include <cstdlib>
-#include <cstdio>
-#include <iostream>
-#include <fstream>
+#include <cstdio> #include <iostream> #include <fstream>
 #include <iomanip>
 #include <map>
 
@@ -10,7 +8,9 @@
 #include "Eigen/Core"
 
 // opencv library header
-#include "cv.h" #include "cxcore.h" #include "highgui.h"
+#include "cv.h" 
+#include "cxcore.h" 
+#include "highgui.h"
 
 // darwin library header
 #include "drwnBase.h"
@@ -18,6 +18,7 @@
 #include "drwnML.h"
 #include "drwnVision.h"
 
+#include "malloc.h"
 #include "slic.h"
 
 using namespace std;
@@ -60,8 +61,7 @@ int main (int argc, char * argv [])
    vector<string> baseNames = drwnDirectoryListing(inputDir, ".jpg", false, false);
    DRWN_LOG_MESSAGE("Loading " << baseNames.size() << " images and labels...");
 
-   drwnClassifierDataset dataset;
-
+   cv::Mat img;
    for (unsigned i = 0; i < baseNames.size(); i++) 
    {
         string imgName = baseNames[i] + ".jpg";
@@ -69,31 +69,32 @@ int main (int argc, char * argv [])
         cout << "Processing image " << imgName << endl;
 
         // read given image
-        cv::Mat img = cv::imread(string(inputDir) + DRWN_DIRSEP + imgName);
+        string imgPath = string(inputDir) + DRWN_DIRSEP + imgName;
+        cout << "Reading image: " << imgPath << endl;
+        img = cv::imread(imgPath, CV_LOAD_IMAGE_COLOR);
         cout << "Read image" << endl;
-       
+        
         // parameters
         const int H = img.rows;
         const int W = img.cols;
+
         // convert to needed format
         cv::Mat imgLab;
         cv::cvtColor(img, imgLab, CV_BGR2Lab);
+        cout << "Create LAB image .." << endl;
 
-        cout << "Create LAB image" << endl;
+        // slic algorithm invokation
+        cv::Mat label = slic (imgLab, 30, 1e-3);
+        cout << "slic done .." << endl;
 
-        cv::Mat label = slic (imgLab, 50, 1);
-        cout << "slic done" << endl;
-
-        cv::imwrite(outputDir+imgName, img);
-        cout << "write original image done.." << endl;
-
-        /*
+        // label out the boundaries of superpixels
         for (int y = 0; y < H; y ++) 
         {
             for (int x = 0; x < W; x ++)
             {
                 unsigned slabel = label.at<unsigned>(y, x);
-                cout << "("  << x << ", " << y << ")" << "slabel: " << slabel << endl;
+                // cout << "("  << x << ", " << y << ")" << "slabel: " << slabel << endl;
+
                 if (x - 1 < 0 || x + 1 > W || y - 1 < 0 || y + 1 > H)
                     continue;
                 if (slabel != label.at<unsigned>(y, x-1) ||
@@ -107,9 +108,8 @@ int main (int argc, char * argv [])
                 }
             }
         }
-        */
-
         cout << "slic received done.." << endl;
+
         /*
         if (bVisualize)
         {
@@ -117,14 +117,15 @@ int main (int argc, char * argv [])
             IplImage *canvas = cvCloneImage(&cvimg);
             drwnShowDebuggingImage(canvas, "image", false);
             cvReleaseImage(&canvas);
-            IplImage cvimgseg = (IplImage) imgseg;
-            IplImage *canvasseg = cvCloneImage(&cvimgseg);
-            drwnShowDebuggingImage(canvasseg, "image", false);
-            cvReleaseImage(&canvasseg);
         }
         */
-        cv::imwrite(string(outputDir) + DRWN_DIRSEP +
-                baseNames[i] + "(seg)" + ".jpg", img);
-        cout << "imwrite done.." << endl;
+        string writeFile = string(outputDir) + DRWN_DIRSEP + baseNames[i] +
+            "_seg.jpg";
+        cout << "Write to file: " << writeFile << endl;
+        cv::imwrite(writeFile, img);
+        cout << "imwrite" << writeFile << " done.." << endl;
+
+        imgLab.release();
+        img.release();
    }
 }
