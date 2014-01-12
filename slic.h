@@ -9,8 +9,7 @@
 ** AUTHOR(S):   Jimmy Lin <JimmyLin@utexas.edu>
 ** DESCRIPTION:
 **   Darwin GUI for creating and evaluating data flow algorithms.
-**
-*****************************************************************************/
+*******************************************************************************/
 
 #include "stdlib.h"
 #include "math.h"
@@ -22,10 +21,10 @@
 class centroid {
     public:
         int x, y;
-        double l, a, b;
+        int l, a, b;
 
         /* Update the centroid */
-        void update (double l, double a, double b, int x, int y) {
+        void update (int l, int a, int b, int x, int y) {
             this->l = l;
             this->a = a;
             this->b = b;
@@ -34,7 +33,7 @@ class centroid {
         }
         /* Constructor */
         centroid () {};
-        centroid (double l, double a, double b, int x, int y) {
+        centroid (int l, int a, int b, int x, int y) {
             this->update (l, a, b, x, y);
         }
 };
@@ -43,10 +42,9 @@ class centroid {
  * INPUT
  *   imgLab: image matrix in EILAB format
  *   k: number of superpixel to generate
- * RETURN
  *   label: matrix indicating the superpixel each pixel resides in
  */
-cv::Mat slic (cv::Mat imgLab, const int k, double threshold) {
+void slic (cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
     if (k < 0) {
         cout << "invalid cluster number specification. " << endl;
     }
@@ -63,7 +61,7 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold) {
     for (int i = 0; i < k; i ++) {
         // randomize the position of centroid
         int x, y;
-        double l, a, b;
+        int l, a, b;
         int gridx = i % gridPerRow;
         int gridy = i / gridPerRow;
         x = (rand() % S) + gridx * S;
@@ -72,69 +70,72 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold) {
         l = imgLab.at<Vec3b>(y, x)[0];
         a = imgLab.at<Vec3b>(y, x)[1];
         b = imgLab.at<Vec3b>(y, x)[2];
+        // update the centroid
         ccs[i].update(l, a, b, x, y);
     }
 
-    cout << "Randomly pick up centroid.." << endl;
+    cout << "Randomly centroid selection ends.." << endl;
 
     // Compute gradient magnitude of the given image
     cv::Mat gradient = cv::Mat (H, W, CV_64F, 0.0);
     for (int y = 0; y < H; y++) {
         for (int x = 0; x < W; x++) {
+            int  countx = 0, county = 0;
             double gradientx = 0.0, gradienty = 0.0;
-            double l = imgLab.at<Vec3b>(y, x)[0];
-            double a = imgLab.at<Vec3b>(y, x)[1];
-            double b = imgLab.at<Vec3b>(y, x)[2];
+            int l = imgLab.at<Vec3b>(y, x)[0];
+            int a = imgLab.at<Vec3b>(y, x)[1];
+            int b = imgLab.at<Vec3b>(y, x)[2];
             if (x - 1 > 0) {
-                double tmpl = imgLab.at<Vec3b>(y, x-1)[0];
-                double tmpa = imgLab.at<Vec3b>(y, x-1)[1];
-                double tmpb = imgLab.at<Vec3b>(y, x-1)[2];
+                int tmpl = imgLab.at<Vec3b>(y, x-1)[0];
+                int tmpa = imgLab.at<Vec3b>(y, x-1)[1];
+                int tmpb = imgLab.at<Vec3b>(y, x-1)[2];
                 gradientx += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
-            } else gradientx = INFINITY;
-
+                countx ++;
+            }
             if (x + 1 < W) {
-                double tmpl = imgLab.at<Vec3b>(y, x+1)[0];
-                double tmpa = imgLab.at<Vec3b>(y, x+1)[1];
-                double tmpb = imgLab.at<Vec3b>(y, x+1)[2];
+                int tmpl = imgLab.at<Vec3b>(y, x+1)[0];
+                int tmpa = imgLab.at<Vec3b>(y, x+1)[1];
+                int tmpb = imgLab.at<Vec3b>(y, x+1)[2];
                 gradientx += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
-            } else gradientx = INFINITY;
+                countx ++;
+            }
 
             if (y - 1 > 0) {
-                double tmpl = imgLab.at<Vec3b>(y-1, x)[0];
-                double tmpa = imgLab.at<Vec3b>(y-1, x)[1];
-                double tmpb = imgLab.at<Vec3b>(y-1, x)[2];
+                int tmpl = imgLab.at<Vec3b>(y-1, x)[0];
+                int tmpa = imgLab.at<Vec3b>(y-1, x)[1];
+                int tmpb = imgLab.at<Vec3b>(y-1, x)[2];
                 gradienty += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
-            } else gradienty = INFINITY;
-
+                county ++;
+            }
             if (y + 1 < H) {
-                double tmpl = imgLab.at<Vec3b>(y-1, x)[0];
-                double tmpa = imgLab.at<Vec3b>(y-1, x)[1];
-                double tmpb = imgLab.at<Vec3b>(y-1, x)[2];
+                int tmpl = imgLab.at<Vec3b>(y+1, x)[0];
+                int tmpa = imgLab.at<Vec3b>(y+1, x)[1];
+                int tmpb = imgLab.at<Vec3b>(y+1, x)[2];
                 gradienty += abs(l-tmpl) + abs(a-tmpa) + abs(b-tmpb);
-            } else gradienty = INFINITY;
-
-            if (gradientx == INFINITY || gradienty == INFINITY)
-                gradient.at<double>(y, x) = INFINITY;
-            else
-                gradient.at<double>(y, x) = sqrt(pow(gradientx, 2.0) + pow(gradienty, 2.0));
+                county ++;
+            }
+            if (countx == 0 && county == 0) {
+                gradient.at<double>(y, x) = 1e5;
+            } else {
+                gradient.at<double>(y, x) = sqrt(pow(gradientx / countx, 2.0) +
+                        pow(gradienty / county, 2.0));
+            }
         }
     }
-    /*
     // Move cluster center to the lowest gradient position
     int n = 1;
-    for (int i = 0; i < k; i ++) 
-    {
-        double min_gradient = INFINITY;
-        int min_x = -1;
-        int min_y = -1;
-        for (int y = std::max(y-n, 0); y < std::min(y+n, H); y++)
-        {
-            for (int x = std::max(x-n, 0); x < std::min(x+n, W); x++)
-            {
-                double g = gradient.at<double>(y, x);
+    for (int i = 0; i < k; i ++) {
+        int x = ccs[i].x;
+        int y = ccs[i].y;
+        int min_x = x;
+        int min_y = y;
+        double min_gradient = gradient.at<double>(y, x);
+        for (int tmpy = std::max(y-n, 0); tmpy <= std::min(y+n, H-1); tmpy++) {
+            for (int tmpx = std::max(x-n, 0); tmpx <= std::min(x+n, W-1); tmpx++) {
+                double g = gradient.at<double>(tmpy, tmpx);
                 if (g < min_gradient) {
-                    min_x = x;
-                    min_y = y;
+                    min_x = tmpx;
+                    min_y = tmpy;
                     min_gradient = g;
                 }
             }
@@ -144,17 +145,14 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold) {
         double min_b = imgLab.at<Vec3b>(min_y, min_x)[2];
         cout << "i: " << i 
              << " (" << ccs[i].x << "," << ccs[i].y << ")" 
-             << " (" << min_x << "," << min_y << ")" 
+             << " (" << min_x << "," << min_y << "," << min_gradient << ")" 
              << endl;
-        update(ccs[i], min_x, min_y, min_l, min_a, min_b);
+        ccs[i].update(min_l, min_a, min_b, min_x, min_y);
     }
-    */
 
     cout << "Move the centroid to the lowest gradient position" << endl;
     
-    // label matrix indicate the cluster number one pixel is in
-    cv::Mat label = cv::Mat (H, W, CV_8U, -1);
-    // distance matrix represents the distance between one pixel and its
+    // Distance matrix represents the distance between one pixel and its
     // centroid
     cv::Mat distance = cv::Mat (H, W, CV_64F, INFINITY);
 
@@ -164,17 +162,16 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold) {
             // acquire labxy attribute of centroid
             int x = ccs[i].x;
             int y = ccs[i].y;
-            double l = ccs[i].l;
-            double a = ccs[i].a;
-            double b = ccs[i].b;
+            int l = ccs[i].l;
+            int a = ccs[i].a;
+            int b = ccs[i].b;
 
             // look around its 2S x 2S region
-            for (int tmpy = std::max(y-S, 0); tmpy < std::min(y+S, H); tmpy++) 
-            {
+            for (int tmpy = std::max(y-S, 0); tmpy < std::min(y+S, H); tmpy++) {
                 for (int tmpx = std::max(x-S, 0); tmpx < std::min(x+S, W); tmpx++) {
-                    double tmpl = imgLab.at<Vec3b>(tmpy, tmpx)[0];
-                    double tmpa = imgLab.at<Vec3b>(tmpy, tmpx)[1];
-                    double tmpb = imgLab.at<Vec3b>(tmpy, tmpx)[2];
+                    int tmpl = imgLab.at<Vec3b>(tmpy, tmpx)[0];
+                    int tmpa = imgLab.at<Vec3b>(tmpy, tmpx)[1];
+                    int tmpb = imgLab.at<Vec3b>(tmpy, tmpx)[2];
 
                     double color_distance = sqrt (pow(tmpl - l, 2.0) +
                             pow(tmpa - a, 2.0) + pow(tmpb - b, 2.0)); 
@@ -192,12 +189,11 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold) {
                         label.at<unsigned>(tmpy, tmpx) = i;
                     }
                 }
-
             }
         }
 
         // Compute new cluster center by taking the mean of each dimension
-        vector<unsigned> count = vector<unsigned> (k, 0);
+        vector<unsigned> count = vector<unsigned> (k, 0.0);
         vector<double> sumx = vector<double> (k, 0.0);
         vector<double> sumy = vector<double> (k, 0.0);
         vector<double> suml = vector<double> (k, 0.0);
@@ -207,7 +203,7 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold) {
         for (int y = 0; y < H; y++) {
             for (int x = 0; x < W; x++) {
                 unsigned clusterIdx = label.at<unsigned>(y, x);
-                //cout << "clusterIdx: " << clusterIdx << endl;
+                // cout << "clusterIdx: " << clusterIdx << endl;
                 if (clusterIdx > (unsigned) k) {
                     continue;
                 }
@@ -220,22 +216,18 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold) {
             }
         }
 
-        /*
         // statistics about each superpixel
-        for (int i = 0; i < k; i ++)
-        {
-            cout << "i = " << i << ", count = " << count[i] << endl;
-        }
-        */
+        // for (int i = 0; i < k; i ++)
+        //   cout << "i = " << i << ", count = " << count[i] << endl;
 
         vector<centroid> newccs (k, centroid());
         for (int i = 0; i < k; i ++) {
             int x = (int) (sumx[i] / count[i]);
             int y = (int) (sumy[i] / count[i]);
-            double l = (int) (suml[i] / count[i]);
-            double a = (int) (suma[i] / count[i]);
-            double b = (int) (sumb[i] / count[i]);
-            newccs[i].update( x, y, l, a, b);
+            int l = (int) (suml[i] / count[i]);
+            int a = (int) (suma[i] / count[i]);
+            int b = (int) (sumb[i] / count[i]);
+            newccs[i].update(l, a, b, x, y);
         }
 
         // Compute residual error E using L-2 norm
@@ -263,5 +255,5 @@ cv::Mat slic (cv::Mat imgLab, const int k, double threshold) {
         }
     }
 
-    return label;
+    return;
 }

@@ -1,6 +1,8 @@
 // c++ standard headers
 #include <cstdlib>
-#include <cstdio> #include <iostream> #include <fstream>
+#include <cstdio> 
+#include <iostream> 
+#include <fstream>
 #include <iomanip>
 #include <map>
 
@@ -13,9 +15,9 @@
 #include "highgui.h"
 
 // darwin library header
-#include "drwnBase.h"
-#include "drwnIO.h"
-#include "drwnML.h"
+#include "drwnBase.h" 
+#include "drwnIO.h" 
+#include "drwnML.h" 
 #include "drwnVision.h"
 
 #include "malloc.h"
@@ -30,18 +32,23 @@ void usage() {
     cerr << "USAGE: ./slic [OPTIONS] <inputDir> <outputDir>\n";
     cerr << "OPTIONS:\n"
         // << "  -o <model>        :: output model\n"
-        << "  -x                :: visualize\n"
+        << "  -k        :: number of clusters specified (15 by default)\n"
+        << "  -t        :: threshold (1e-3 by default)\n"
+        << "  -x        :: visualize\n"
         << DRWN_STANDARD_OPTIONS_USAGE
         << endl;
 }
 
 // MAIN FUNCTION
-int main (int argc, char * argv [])
-{
+int main (int argc, char * argv []) {
    bool bVisualize = false;
+   int nClusters = 15;
+   double threshold = 1e-3;
 
    DRWN_BEGIN_CMDLINE_PROCESSING (argc, argv)
         DRWN_CMDLINE_BOOL_OPTION("-x", bVisualize)
+        DRWN_CMDLINE_INT_OPTION("-k", nClusters)
+        DRWN_CMDLINE_REAL_OPTION("-t", threshold)
    DRWN_END_CMDLINE_PROCESSING(usage());
 
 
@@ -61,9 +68,7 @@ int main (int argc, char * argv [])
    vector<string> baseNames = drwnDirectoryListing(inputDir, ".jpg", false, false);
    DRWN_LOG_MESSAGE("Loading " << baseNames.size() << " images and labels...");
 
-   cv::Mat img;
-   for (unsigned i = 0; i < baseNames.size(); i++) 
-   {
+   for (unsigned i = 0; i < baseNames.size(); i++) {
         string imgName = baseNames[i] + ".jpg";
         DRWN_LOG_STATUS ("...processing image " << imgName);
         cout << "Processing image " << imgName << endl;
@@ -71,7 +76,7 @@ int main (int argc, char * argv [])
         // read given image
         string imgPath = string(inputDir) + DRWN_DIRSEP + imgName;
         cout << "Reading image: " << imgPath << endl;
-        img = cv::imread(imgPath, CV_LOAD_IMAGE_COLOR);
+        cv::Mat img = cv::imread (imgPath);
         cout << "Read image" << endl;
         
         // parameters
@@ -82,21 +87,28 @@ int main (int argc, char * argv [])
         cv::Mat imgLab;
         cv::cvtColor(img, imgLab, CV_BGR2Lab);
         cout << "Create LAB image .." << endl;
+        /*
+        for (int y = 0; y < H; y ++) {
+            for (int x = 0; x < W; x ++) {
+                cout << (int) imgLab.at<Vec3b>(y,x)[1] << "," << (int) imgLab.at<Vec3b>(y,x)[2]<< endl;
+            }
+        }
+        */
 
         // slic algorithm invokation
-        cv::Mat label = slic (imgLab, 30, 1e-3);
+        cv::Mat label = cv::Mat (H, W, CV_8U, -1);
+        slic (imgLab, label, nClusters, threshold);
         cout << "slic done .." << endl;
 
         // label out the boundaries of superpixels
-        for (int y = 0; y < H; y ++) 
-        {
-            for (int x = 0; x < W; x ++)
-            {
+        for (int y = 0; y < H; y ++) {
+            for (int x = 0; x < W; x ++) {
                 unsigned slabel = label.at<unsigned>(y, x);
                 // cout << "("  << x << ", " << y << ")" << "slabel: " << slabel << endl;
 
-                if (x - 1 < 0 || x + 1 > W || y - 1 < 0 || y + 1 > H)
+                if (x - 1 < 0 || x + 1 > W || y - 1 < 0 || y + 1 > H) {
                     continue;
+                }
                 if (slabel != label.at<unsigned>(y, x-1) ||
                     slabel != label.at<unsigned>(y, x+1) ||
                     slabel != label.at<unsigned>(y-1, x) ||
@@ -119,13 +131,10 @@ int main (int argc, char * argv [])
             cvReleaseImage(&canvas);
         }
         */
-        string writeFile = string(outputDir) + DRWN_DIRSEP + baseNames[i] +
+        string outFilePath = string(outputDir) + DRWN_DIRSEP + baseNames[i] +
             "_seg.jpg";
-        cout << "Write to file: " << writeFile << endl;
-        cv::imwrite(writeFile, img);
-        cout << "imwrite" << writeFile << " done.." << endl;
-
-        imgLab.release();
-        img.release();
+        cout << "Write to file: " << outFilePath << endl;
+        cv::imwrite (outFilePath, img);
+        cout << "imwrite " << outFilePath << " done.." << endl;
    }
 }
