@@ -4,8 +4,7 @@
 #include <iostream> 
 #include <fstream>
 #include <iomanip>
-#include <map>
-
+#include <map> 
 // eigen matrix library headers
 #include "Eigen/Core"
 
@@ -31,10 +30,10 @@ void usage() {
     cerr << DRWN_USAGE_HEADER << endl;
     cerr << "USAGE: ./slic [OPTIONS] <inputDir> <outputDir>\n";
     cerr << "OPTIONS:\n"
-        // << "  -o <model>        :: output model\n"
-        << "  -k        :: number of clusters specified (15 by default)\n"
-        << "  -t        :: threshold (1e-3 by default)\n"
-        << "  -x        :: visualize\n"
+        << "  -k             :: number of clusters specified (15 by default)\n"
+        << "  -t             :: threshold (1e-3 by default)\n"
+        << "  -m             :: relative importance of two types of distances\n"
+        << "  -x             :: visualize\n"
         << DRWN_STANDARD_OPTIONS_USAGE
         << endl;
 }
@@ -50,7 +49,6 @@ int main (int argc, char * argv []) {
         DRWN_CMDLINE_INT_OPTION("-k", nClusters)
         DRWN_CMDLINE_REAL_OPTION("-t", threshold)
    DRWN_END_CMDLINE_PROCESSING(usage());
-
 
    if (DRWN_CMDLINE_ARGC != 2) {
        usage();
@@ -85,20 +83,13 @@ int main (int argc, char * argv []) {
 
         // convert to needed format
         cv::Mat imgLab;
-        cv::cvtColor(img, imgLab, CV_BGR2Lab);
-        cout << "Create LAB image .." << endl;
-        /*
-        for (int y = 0; y < H; y ++) {
-            for (int x = 0; x < W; x ++) {
-                cout << (int) imgLab.at<Vec3b>(y,x)[1] << "," << (int) imgLab.at<Vec3b>(y,x)[2]<< endl;
-            }
-        }
-        */
+        cv::cvtColor (img, imgLab, CV_BGR2Lab);
+        cout << "Create LAB image.." << endl;
 
         // slic algorithm invokation
-        cv::Mat label = cv::Mat (H, W, CV_8U, -1);
+        cv::Mat label(H, W, CV_8U, -1);
         slic (imgLab, label, nClusters, threshold);
-        cout << "slic done .." << endl;
+        cout << "slic done.." << endl;
 
         // label out the boundaries of superpixels
         for (int y = 0; y < H; y ++) {
@@ -109,10 +100,8 @@ int main (int argc, char * argv []) {
                 if (x - 1 < 0 || x + 1 > W || y - 1 < 0 || y + 1 > H) {
                     continue;
                 }
-                if (slabel != label.at<unsigned>(y, x-1) ||
-                    slabel != label.at<unsigned>(y, x+1) ||
-                    slabel != label.at<unsigned>(y-1, x) ||
-                    slabel != label.at<unsigned>(y+1, x) ) 
+                if (slabel != label.at<unsigned>(y, x+1) ||
+                    slabel != label.at<unsigned>(y+1, x)) 
                 {
                     img.at<cv::Vec3b>(y,x)[0] = 0;
                     img.at<cv::Vec3b>(y,x)[1] = 0;

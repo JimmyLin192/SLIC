@@ -44,10 +44,8 @@ class centroid {
  *   k: number of superpixel to generate
  *   label: matrix indicating the superpixel each pixel resides in
  */
-void slic (cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
-    if (k < 0) {
-        cout << "invalid cluster number specification. " << endl;
-    }
+void slic (const cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
+    DRWN_ASSERT (k > 0);
 
     // height and width of the provided image
     const int H = imgLab.rows;
@@ -74,10 +72,10 @@ void slic (cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
         ccs[i].update(l, a, b, x, y);
     }
 
-    cout << "Randomly centroid selection ends.." << endl;
+    DRWN_LOG_VERBOSE ("Randomly centroid selection ends..");
 
     // Compute gradient magnitude of the given image
-    cv::Mat gradient = cv::Mat (H, W, CV_64F, 0.0);
+    cv::Mat gradient(H, W, CV_64F, cv::Scalar(0.0));
     for (int y = 0; y < H; y++) {
         for (int x = 0; x < W; x++) {
             int  countx = 0, county = 0;
@@ -147,16 +145,17 @@ void slic (cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
              << " (" << ccs[i].x << "," << ccs[i].y << ")" 
              << " (" << min_x << "," << min_y << "," << min_gradient << ")" 
              << endl;
-        ccs[i].update(min_l, min_a, min_b, min_x, min_y);
+        ccs[i].update (min_l, min_a, min_b, min_x, min_y);
     }
 
-    cout << "Move the centroid to the lowest gradient position" << endl;
+    DRWN_LOG_VERBOSE ("Move the centroid to the lowest gradient position");
     
     // Distance matrix represents the distance between one pixel and its
     // centroid
-    cv::Mat distance = cv::Mat (H, W, CV_64F, INFINITY);
+    cv::Mat distance(H, W, CV_64F, cv::Scalar(INFINITY));
 
     int iter = 1;
+    double m = 2.0; // relative importance between two type of distances
     while (true) {
         for (int i = 0; i < k; i ++) {
             // acquire labxy attribute of centroid
@@ -180,7 +179,7 @@ void slic (cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
 
                     // FIXME: to be refined formula for ultimate distance
                     double D = sqrt (pow(color_distance, 2.0) +
-                            pow(spatial_distance / S, 2.0));
+                            pow(spatial_distance * m / S, 2.0));
 
                     // distance is smaller, update the centroid it belong to
                     if (D < distance.at<double>(tmpy, tmpx)) {
@@ -204,7 +203,7 @@ void slic (cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
             for (int x = 0; x < W; x++) {
                 unsigned clusterIdx = label.at<unsigned>(y, x);
                 // cout << "clusterIdx: " << clusterIdx << endl;
-                if (clusterIdx > (unsigned) k) {
+                if (clusterIdx >= (unsigned) k) {
                     continue;
                 }
                 count[clusterIdx] ++;
@@ -217,8 +216,8 @@ void slic (cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
         }
 
         // statistics about each superpixel
-        // for (int i = 0; i < k; i ++)
-        //   cout << "i = " << i << ", count = " << count[i] << endl;
+        for (int i = 0; i < k; i ++)
+            cout << "i = " << i << ", count = " << count[i] << endl;
 
         vector<centroid> newccs (k, centroid());
         for (int i = 0; i < k; i ++) {
@@ -248,12 +247,10 @@ void slic (cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
             ccs[i] = newccs[i];
         }
 
-        cout << "Iteration: " << (iter++) << ", error: " << E << endl;
+       cout << "Iteration: " << iter++ << ", error: " << E << endl;
         // Stop iteration until specified precision is reached
         if (E < threshold) {
             break;
         }
     }
-
-    return;
 }
