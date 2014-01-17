@@ -73,6 +73,7 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
     }
 
     DRWN_LOG_VERBOSE ("Randomly centroid selection ends..");
+    /*
 
     // Compute gradient magnitude of the given image
     cv::Mat gradient(H, W, CV_64F, cv::Scalar(0.0));
@@ -149,13 +150,15 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
     }
 
     DRWN_LOG_VERBOSE ("Move the centroid to the lowest gradient position");
+    */
     
     // Distance matrix represents the distance between one pixel and its
     // centroid
     cv::Mat distance(H, W, CV_64F, cv::Scalar(INFINITY));
 
-    int iter = 1;
-    double m = 2.0; // relative importance between two type of distances
+    // iteration starts
+    int iter = 1;  // iteration number
+    double m = 40.0; // relative importance between two type of distances
     while (true) {
         for (int i = 0; i < k; i ++) {
             // acquire labxy attribute of centroid
@@ -166,8 +169,8 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
             int b = ccs[i].b;
 
             // look around its 2S x 2S region
-            for (int tmpy = std::max(y-S, 0); tmpy < std::min(y+S, H); tmpy++) {
-                for (int tmpx = std::max(x-S, 0); tmpx < std::min(x+S, W); tmpx++) {
+            for (int tmpy = std::max(y-S, 0); tmpy <= std::min(y+S, H-1); tmpy++) {
+                for (int tmpx = std::max(x-S, 0); tmpx <= std::min(x+S, W-1); tmpx++) {
                     int tmpl = imgLab.at<Vec3b>(tmpy, tmpx)[0];
                     int tmpa = imgLab.at<Vec3b>(tmpy, tmpx)[1];
                     int tmpb = imgLab.at<Vec3b>(tmpy, tmpx)[2];
@@ -176,14 +179,11 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
                             pow(tmpa - a, 2.0) + pow(tmpb - b, 2.0)); 
                     double spatial_distance = sqrt (pow(tmpx - x, 2.0) +
                             pow(tmpy - y, 2.0));
-
-                    // FIXME: to be refined formula for ultimate distance
                     double D = sqrt (pow(color_distance, 2.0) +
                             pow(spatial_distance * m / S, 2.0));
 
-                    // distance is smaller, update the centroid it belong to
+                    // if distance is smaller, update the centroid it belongs to
                     if (D < distance.at<double>(tmpy, tmpx)) {
-                        // cout << "comparison: (" << D << ", " << distance.at<double>(tmpy, tmpx) <<")" << endl;
                         distance.at<double>(tmpy, tmpx) = D;
                         label.at<unsigned>(tmpy, tmpx) = i;
                     }
@@ -202,10 +202,6 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
         for (int y = 0; y < H; y++) {
             for (int x = 0; x < W; x++) {
                 unsigned clusterIdx = label.at<unsigned>(y, x);
-                // cout << "clusterIdx: " << clusterIdx << endl;
-                if (clusterIdx >= (unsigned) k) {
-                    continue;
-                }
                 count[clusterIdx] ++;
                 sumx[clusterIdx] += x;
                 sumy[clusterIdx] += y;
@@ -216,16 +212,17 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
         }
 
         // statistics about each superpixel
-        for (int i = 0; i < k; i ++)
+        for (int i = 0; i < k; i ++) {
             cout << "i = " << i << ", count = " << count[i] << endl;
+        }
 
         vector<centroid> newccs (k, centroid());
         for (int i = 0; i < k; i ++) {
-            int x = (int) (sumx[i] / count[i]);
-            int y = (int) (sumy[i] / count[i]);
-            int l = (int) (suml[i] / count[i]);
-            int a = (int) (suma[i] / count[i]);
-            int b = (int) (sumb[i] / count[i]);
+            int x = (int) (1.0 * sumx[i] / count[i]);
+            int y = (int) (1.0 * sumy[i] / count[i]);
+            int l = (int) (1.0 * suml[i] / count[i]);
+            int a = (int) (1.0 * suma[i] / count[i]);
+            int b = (int) (1.0 * sumb[i] / count[i]);
             newccs[i].update(l, a, b, x, y);
         }
 
@@ -247,7 +244,7 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int k, double threshold) {
             ccs[i] = newccs[i];
         }
 
-       cout << "Iteration: " << iter++ << ", error: " << E << endl;
+        cout << "Iteration: " << iter++ << ", error: " << E << endl;
         // Stop iteration until specified precision is reached
         if (E < threshold) {
             break;

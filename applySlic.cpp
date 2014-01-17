@@ -111,15 +111,26 @@ int main (int argc, char * argv []) {
         }
         cout << "slic received done.." << endl;
 
-        /*
-        if (bVisualize)
-        {
-            IplImage cvimg = (IplImage) img;
-            IplImage *canvas = cvCloneImage(&cvimg);
-            drwnShowDebuggingImage(canvas, "image", false);
-            cvReleaseImage(&canvas);
+        for (int y = 0; y < H; y ++) {
+            for (int x = 0; x < W; x ++) {
+                unsigned slabel = label.at<unsigned>(y, x);
+                // cout << "("  << x << ", " << y << ")" << "slabel: " << slabel << endl;
+
+                img.at<cv::Vec3b>(y,x)[0] = 255/nClusters * slabel;
+                img.at<cv::Vec3b>(y,x)[1] = 255/nClusters * slabel;
+                img.at<cv::Vec3b>(y,x)[2] = 255/nClusters * slabel;
+            }
         }
-        */
+
+        /*
+           if (bVisualize)
+           {
+           IplImage cvimg = (IplImage) img;
+           IplImage *canvas = cvCloneImage(&cvimg);
+           drwnShowDebuggingImage(canvas, "image", false);
+           cvReleaseImage(&canvas);
+           }
+           */
         string outFilePath = string(outputDir) + DRWN_DIRSEP + baseNames[i] +
             "_seg.jpg";
         cout << "Write to file: " << outFilePath << endl;
