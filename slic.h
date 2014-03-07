@@ -54,7 +54,7 @@ class drwnConnectedComponent {
         /* Add one pixel to this connected component */
         void add (int x, int y) {
             cv::Point point(x, y);
-            (this->pixels).insert (point);
+            //(this->pixels).insert (point);
             this->count += 1;
             this->acc_x += x;
             this->acc_y += y;
