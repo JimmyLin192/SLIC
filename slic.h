@@ -56,9 +56,11 @@ class drwnConnectedComponent {
 
         /* Add one pixel to this connected component */
         void add (int x, int y) {
+            cout << "before add: " << (this->pixels).size()<< " after add: " << (this->pixels).size() <<<< endl;
             std::pair<int,int> point = std::make_pair(x,y);
             (this->pixels).insert (point);
             this->count += 1;
+            cout <<  endl;
             this->acc_x += x;
             this->acc_y += y;
         }
@@ -73,12 +75,13 @@ class drwnConnectedComponent {
 
         /* Get the center of connected component */
         std::pair<int,int> getCenter() {
+            cout << acc_x << ", " << count << ", " << acc_y << endl;
             return std::make_pair(acc_x/count, acc_y/count);
         }
 };
 
 bool connectedComponentCompare (drwnConnectedComponent cc1, drwnConnectedComponent cc2) {
-    return cc1.count < cc2.count;
+    return cc1.count > cc2.count;
 }
 
 /* 
@@ -336,7 +339,7 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
             bool west_equal = x > 0 && current_label == west_label;
             bool north_equal = y > 0 && current_label == north_label;
             if (west_equal && north_equal) {
-                cout << "equal" << endl;
+                // cout << "equal" << endl;
                 if (cclist[north_label].id == cclist[west_label].id) {
                     // west and north has already been in the same connected component
                     cclist[north_label].add(x, y);
@@ -348,21 +351,21 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
                 continue;
             }
             if (west_equal) {
-                cout << "west_equal" << endl;
+                // cout << "west_equal" << endl;
                 // add to west connected component
                 cclabel.at<int>(y,x) = west_label;
                 cclist[west_label].add(x, y);
                 continue;
             }
             if (north_equal) {
-                cout << "north_equal" << endl;
+                //cout << "north_equal" << endl;
                 // add to north connected component
                 cclabel.at<int>(y,x) = north_label;
                 cclist[north_label].add(x, y);
                 continue;
             }
             // new connected component
-            cout << "sdf" << endl;
+            // cout << "sdf" << endl;
             ccCount += 1;
             cclabel.at<int>(y,x) = ccCount;
             drwnConnectedComponent* newcc = new drwnConnectedComponent(ccCount);
@@ -378,7 +381,8 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
     // merge smallest component to its nearest connected component
     // DRWN_ASSERT (nCluster > cclist.size());
     for (int i = nCluster; i < cclist.size(); i ++) {
-        cout << "size of cc: " << cclist[i].count << endl;
+        if (cclist[i].count <= 0) continue;
+        cout << "size of cc [" << i << "]: " << cclist[i].count << endl;
         double min_dist = INFINITY;
         int closest_cc = -1;
         for (int j = 0; j < nCluster; j ++) {
