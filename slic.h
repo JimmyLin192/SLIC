@@ -44,7 +44,7 @@ class drwnConnectedComponent {
         int count;  // cumulative number of pixels in that connected component
         int acc_x;  // sum of horizental coordinate of all pixels within that component
         int acc_y;  // sum of vertical coordinate of all pixels within that component
-        std::set< std::pair<int,int> > pixels;  // set of pixels 
+        std::vector< std::pair<int,int> > pixels;  // set of pixels 
 
         /* Constructor */
         drwnConnectedComponent(int id) {
@@ -56,26 +56,30 @@ class drwnConnectedComponent {
 
         /* Add one pixel to this connected component */
         void add (int x, int y) {
-            cout << "before add: " << (this->pixels).size()<< " after add: " << (this->pixels).size() <<<< endl;
             std::pair<int,int> point = std::make_pair(x,y);
-            (this->pixels).insert (point);
-            this->count += 1;
-            cout <<  endl;
-            this->acc_x += x;
-            this->acc_y += y;
+            (this->pixels).push_back (point);
+            this->count = this->count + 1;
+            this->acc_x = this->acc_x + x;
+            this->acc_y = this->acc_x + y;
         }
 
         /* Incorporate all pixels in anotehr connected component */
         void merge (drwnConnectedComponent obj) {
-            for (std::set< std::pair<int,int> >::iterator it = obj.pixels.begin();
-                    it != obj.pixels.end(); ++it) {
-                this->add((*it).first, (*it).second);
+            // add all pixels to this drwnConnectedComponent
+            for (int i = 0; i < obj.pixels.size(); i ++) {
+                this->add(obj.pixels[i].first, obj.pixels[i].second);
             }
+        }
+
+        void clear () {
+            (this->pixels).clear();
+            this->count = 0;
+            this->acc_x = 0;
+            this->acc_y = 0;
         }
 
         /* Get the center of connected component */
         std::pair<int,int> getCenter() {
-            cout << acc_x << ", " << count << ", " << acc_y << endl;
             return std::make_pair(acc_x/count, acc_y/count);
         }
 };
@@ -101,6 +105,7 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
     const int W = imgLab.cols;
     DRWN_ASSERT (H > 0);
     DRWN_ASSERT (W > 0);
+    long expectedNPixels = H*W;
 
     // label must be initialized to be -1
     for (int y = 0; y < H; y ++) {
@@ -111,7 +116,7 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
     }
 
     // randomly pick up initial cluster center
-    const int S = sqrt(H * W / nCluster);  // grid size
+    const int S = sqrt(H * W / nCluster);  // grid size 
     const int gridPerRow = (W % S > 0)?(W / S + 1):(W / S);
     vector<drwnCentroid> ccs (nCluster, drwnCentroid());
     cout << "S :" << S << endl;
@@ -188,7 +193,7 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
         }
     }
     // Move cluster center to the lowest gradient position
-    int n = 5;
+    int n = 1;
     for (int i = 0; i < nCluster; i ++) {
         int x = ccs[i].x;
         int y = ccs[i].y;
@@ -208,10 +213,12 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
         double min_l = imgLab.at<Vec3b>(min_y, min_x)[0];
         double min_a = imgLab.at<Vec3b>(min_y, min_x)[1];
         double min_b = imgLab.at<Vec3b>(min_y, min_x)[2];
+        /*
         cout << "i: " << i 
              << " (" << ccs[i].x << ", " << ccs[i].y << ")" 
              << " (" << min_x << ", " << min_y << ", " << min_gradient << ")" 
              << endl;
+             */
         ccs[i].update (min_l, min_a, min_b, min_x, min_y);
     }
 
@@ -284,10 +291,12 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
         }
 
         // statistics about each superpixel
+        /*
         cout << "At iteration " << iter << ":" << endl;
         for (int i = 0; i < nCluster; i ++) {
             cout << "i = " << i << ", count = " << count[i] << endl;
         }
+        */
 
         vector<drwnCentroid> newccs (nCluster, drwnCentroid());
         for (int i = 0; i < nCluster; i ++) {
@@ -326,63 +335,77 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
 /*}}}*/
 
     // post processing: enforce 4-connectivity
+/*{{{*/
     cv::Mat cclabel (H, W, CV_32S, -1);
-    int ccCount = 0;
+    int ccCount = -1;
     std::vector<drwnConnectedComponent> cclist;
     // find all connected component
     cout << "Find all connected component starts.." << endl; 
     for (int y = 0; y < H; y ++) {
         for (int x = 0; x < W; x ++) {
             int west_label = x-1>=0?label.at<int>(y,x-1):-1;
-            int north_label = y-1>=0?label.at<int>(y-1,x):-1;
+            int north_label = y-1>=0?label.at<int>(y-1,x):-2;
             int current_label = label.at<int>(y,x);
             bool west_equal = x > 0 && current_label == west_label;
             bool north_equal = y > 0 && current_label == north_label;
+
+            int west_cclabel = x-1>=0?cclabel.at<int>(y,x-1):-1;
+            int north_cclabel = y-1>=0?cclabel.at<int>(y-1,x):-2;
             if (west_equal && north_equal) {
-                // cout << "equal" << endl;
-                if (cclist[north_label].id == cclist[west_label].id) {
+                if (west_cclabel == north_cclabel) {
                     // west and north has already been in the same connected component
-                    cclist[north_label].add(x, y);
+                    // add to west connected component
+                    cclist[west_cclabel].add(x, y);
+                    cclabel.at<int>(y,x) = west_cclabel;
                 } else {
                     // merge west and north connected component and add to it
-                    cclist[north_label].merge(cclist[west_label]);
-                    ccCount--;
+                    cclist[north_cclabel].merge(cclist[west_cclabel]);
+                    for (int i = 0; i < cclist[west_cclabel].pixels.size(); i ++) {
+                        cclabel.at<int>(cclist[west_cclabel].pixels[i].second,
+                                cclist[west_cclabel].pixels[i].first) = north_cclabel;
+                    }
+                    cclist[west_cclabel].clear();
+                    cclist[north_cclabel].add(x,y);
+                    cclabel.at<int>(y,x) = north_cclabel;
                 }
                 continue;
             }
             if (west_equal) {
-                // cout << "west_equal" << endl;
                 // add to west connected component
-                cclabel.at<int>(y,x) = west_label;
-                cclist[west_label].add(x, y);
+                cclabel.at<int>(y,x) = west_cclabel;
+                cclist[west_cclabel].add(x, y);
                 continue;
             }
             if (north_equal) {
-                //cout << "north_equal" << endl;
                 // add to north connected component
-                cclabel.at<int>(y,x) = north_label;
-                cclist[north_label].add(x, y);
+                cclabel.at<int>(y,x) = north_cclabel;
+                cclist[north_cclabel].add(x, y);
                 continue;
             }
             // new connected component
-            // cout << "sdf" << endl;
             ccCount += 1;
             cclabel.at<int>(y,x) = ccCount;
             drwnConnectedComponent* newcc = new drwnConnectedComponent(ccCount);
+            newcc->add(x,y);
             cclist.push_back(*newcc);
         }
     }
-    cout << "Componen number: " << ccCount << endl;
+
+    long totalPixels = 0;
+    for (int i = 0; i < cclist.size(); i ++) {
+        totalPixels += cclist[i].count;
+    }
+    DRWN_ASSERT(totalPixels == expectedNPixels);
+    cout << "Connected Component number: " << ccCount << endl;
     cout << "Find all connected component ends.." << endl;
-    // sort all connected components with its magnitude
+
+    // Sort all connected components with its magnitude
     std::list<drwnConnectedComponent> sortlist (cclist.begin(), cclist.end());
     sortlist.sort (connectedComponentCompare);
     cclist = std::vector<drwnConnectedComponent>(sortlist.begin(), sortlist.end());
-    // merge smallest component to its nearest connected component
-    // DRWN_ASSERT (nCluster > cclist.size());
+    // Merge smallest component to its nearest connected component
     for (int i = nCluster; i < cclist.size(); i ++) {
         if (cclist[i].count <= 0) continue;
-        cout << "size of cc [" << i << "]: " << cclist[i].count << endl;
         double min_dist = INFINITY;
         int closest_cc = -1;
         for (int j = 0; j < nCluster; j ++) {
@@ -395,16 +418,29 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
             }
         }
         cclist[closest_cc].merge(cclist[i]);
-        //delete cclist[i];
+        cclist[i].clear();
     }
+    totalPixels = 0;
+    for (int i = 0; i < nCluster; i ++) {
+        totalPixels += cclist[i].count;
+    }
+    DRWN_ASSERT(totalPixels == expectedNPixels);
     cout << "Merge all connected component ends.." << endl;
+/*}}}*/
 
     // mark up in the label matrix
+    totalPixels = 0;
     for (int i = 0; i < nCluster; i ++) {
-        for (std::set< std::pair<int,int> >::iterator it = cclist[i].pixels.begin();
-                it != cclist[i].pixels.end(); ++it) {
-            label.at<int>((*it).second, (*it).first) = i;
+        int nPixels = cclist[i].pixels.size();
+        for (int j = 0; j < nPixels; j++) {
+            int tmp_y = cclist[i].pixels[j].second;
+            int tmp_x = cclist[i].pixels[j].first;
+            label.at<int>(tmp_y, tmp_x) = i;
         }
+        totalPixels += nPixels;
     }
-
+    // cout << "totalPixels: " << totalPixels << endl;
+    // cout << "expected pixels:" << expectedNPixels << endl;
+    DRWN_ASSERT(totalPixels == expectedNPixels);
+    
 }
