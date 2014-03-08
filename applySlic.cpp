@@ -41,7 +41,7 @@ void usage() {
 // MAIN FUNCTION
 int main (int argc, char * argv []) {
    bool bVisualize = false;
-   int nClusters = 15;
+   int nClusters = 50;
    double threshold = 1e-3;
 
    DRWN_BEGIN_CMDLINE_PROCESSING (argc, argv)
@@ -87,21 +87,21 @@ int main (int argc, char * argv []) {
         cout << "Create LAB image.." << endl;
 
         // slic algorithm invokation
-        cv::Mat label(H, W, CV_8U, -1);
+        cv::Mat label(H, W, CV_32S, -1);
         slic (imgLab, label, nClusters, threshold);
         cout << "slic done.." << endl;
 
         // label out the boundaries of superpixels
         for (int y = 0; y < H; y ++) {
             for (int x = 0; x < W; x ++) {
-                unsigned slabel = label.at<unsigned>(y, x);
+                int slabel = label.at<int>(y, x);
                 // cout << "("  << x << ", " << y << ")" << "slabel: " << slabel << endl;
 
                 if (x - 1 < 0 || x + 1 > W || y - 1 < 0 || y + 1 > H) {
                     continue;
                 }
-                if (slabel != label.at<unsigned>(y, x+1) ||
-                    slabel != label.at<unsigned>(y+1, x)) 
+                if (slabel != label.at<int>(y, x+1) ||
+                    slabel != label.at<int>(y+1, x)) 
                 {
                     img.at<cv::Vec3b>(y,x)[0] = 0;
                     img.at<cv::Vec3b>(y,x)[1] = 0;
@@ -110,7 +110,7 @@ int main (int argc, char * argv []) {
             }
         }
         cout << "slic received done.." << endl;
-
+/*
         for (int y = 0; y < H; y ++) {
             for (int x = 0; x < W; x ++) {
                 unsigned slabel = label.at<unsigned>(y, x);
@@ -121,6 +121,7 @@ int main (int argc, char * argv []) {
                 img.at<cv::Vec3b>(y,x)[2] = 255/nClusters * slabel;
             }
         }
+        */
 
         /*
            if (bVisualize)
