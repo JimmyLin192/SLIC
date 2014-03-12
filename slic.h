@@ -18,12 +18,12 @@
 #define TEST
 
 /* Object nClustereeping track of info of the cluster center */
-class centroid {
+class drwnCentroid {
     public:
-        int x, y;
         int l, a, b;
+        int x, y;
 
-        /* Update the centroid */
+        /* Update the drwnCentroid */
         void update (int l, int a, int b, int x, int y) {
             this->l = l;
             this->a = a;
@@ -32,23 +32,26 @@ class centroid {
             this->y = y;
         }
         /* Constructor */
-        centroid () {};
-        centroid (int l, int a, int b, int x, int y) {
+        drwnCentroid () {};
+        drwnCentroid (int l, int a, int b, int x, int y) {
             this->update (l, a, b, x, y);
         }
 };
 
-class connected_component {
+class drwnConnectedComponent {
     public:
-        int id;
-        int count;
-        int acc_x;
-        int acc_y;
-        std::set< cv::Point > pixels;
+        int id;  // id number of connected component
+        int count;  // cumulative number of pixels in that connected component
+        int acc_x;  // sum of horizental coordinate of all pixels within that component
+        int acc_y;  // sum of vertical coordinate of all pixels within that component
+        std::set< cv::Point > pixels;  // set of pixels 
 
-        connected_component(int id) {
+        /* Constructor */
+        drwnConnectedComponent(int id) {
             this->id = id;
         }
+
+        /* Add one pixel to this connected component */
         void add (int x, int y) {
             cv::Point point(x, y);
             (this->pixels).insert (point);
@@ -56,17 +59,21 @@ class connected_component {
             this->acc_x += x;
             this->acc_y += y;
         }
-        void merge (connected_component obj) {
+
+        /* Incorporate all pixels in anotehr connected component */
+        void merge (drwnConnectedComponent obj) {
             for (std::set< cv::Point >::iterator it = obj.pixels.begin();
                     it != obj.pixels.end(); ++it) 
                 this->add((*it).x, (*it).y);
         }
+
+        /* Get the center of connected component */
         cv::Point getCenter() {
             return cv::Point(acc_x/count, acc_y/count);
         }
 };
 
-bool connectedComponentCompare (connected_component cc1, connected_component cc2) {
+bool connectedComponentCompare (drwnConnectedComponent cc1, drwnConnectedComponent cc2) {
     return cc1.count < cc2.count;
 }
 
@@ -90,25 +97,25 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
     // randomly pick up initial cluster center
     const int S = sqrt(H * W / nCluster);  // grid size
     const int gridPerRow = W / S;
-    vector<centroid> ccs (nCluster, centroid());
+    vector<drwnCentroid> ccs (nCluster, drwnCentroid());
 
     for (int i = 0; i < nCluster; i ++) {
-        // randomize the position of centroid
+        // randomize the position of drwnCentroid
         int x, y;
         int l, a, b;
         int gridx = i % gridPerRow;
         int gridy = i / gridPerRow;
         x = (rand() % S) + gridx * S;
         y = (rand() % S) + gridy * S;
-        // acquire lab color of the derived centroid
+        // acquire lab color of the derived drwnCentroid
         l = imgLab.at<Vec3b>(y, x)[0];
         a = imgLab.at<Vec3b>(y, x)[1];
         b = imgLab.at<Vec3b>(y, x)[2];
-        // update the centroid
+        // update the drwnCentroid
         ccs[i].update(l, a, b, x, y);
     }
 
-    DRWN_LOG_VERBOSE ("Randomly centroid selection ends..");
+    DRWN_LOG_VERBOSE ("Randomly drwnCentroid selection ends..");
     /*
     // Compute gradient magnitude of the given image
     cv::Mat gradient(H, W, CV_64F, cv::Scalar(0.0));
@@ -184,11 +191,11 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
         ccs[i].update (min_l, min_a, min_b, min_x, min_y);
     }
 
-    DRWN_LOG_VERBOSE ("Move the centroid to the lowest gradient position");
+    DRWN_LOG_VERBOSE ("Move the drwnCentroid to the lowest gradient position");
     */
     
     // Distance matrix represents the distance between one pixel and its
-    // centroid
+    // drwnCentroid
     cv::Mat distance(H, W, CV_64F, cv::Scalar(INFINITY));
 
     // iteration starts
@@ -196,7 +203,7 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
     double m = 40.0; // relative importance between two type of distances
     while (true) {
         for (int i = 0; i < nCluster; i ++) {
-            // acquire labxy attribute of centroid
+            // acquire labxy attribute of drwnCentroid
             int x = ccs[i].x;
             int y = ccs[i].y;
             int l = ccs[i].l;
@@ -217,7 +224,7 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
                     double D = sqrt (pow(color_distance, 2.0) +
                             pow(spatial_distance * m / S, 2.0));
 
-                    // if distance is smaller, update the centroid it belongs to
+                    // if distance is smaller, update the drwnCentroid it belongs to
                     if (D < distance.at<double>(tmpy, tmpx)) {
                         distance.at<double>(tmpy, tmpx) = D;
                         label.at<unsigned>(tmpy, tmpx) = i;
@@ -251,7 +258,7 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
             cout << "i = " << i << ", count = " << count[i] << endl;
         }
 
-        vector<centroid> newccs (nCluster, centroid());
+        vector<drwnCentroid> newccs (nCluster, drwnCentroid());
         for (int i = 0; i < nCluster; i ++) {
             int x = (int) (1.0 * sumx[i] / count[i]);
             int y = (int) (1.0 * sumy[i] / count[i]);
@@ -289,7 +296,7 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
     // post processing: enforce 4-connectivity
     cv::Mat cclabel (H, W, CV_8U, 0);
     int ccCount = 0;
-    std::vector<connected_component> cclist;
+    std::vector<drwnConnectedComponent> cclist;
     // find all connected component
     for (int y = 0; y < H; y ++) {
         for (int x = 0; x < W; x ++) {
@@ -323,13 +330,13 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
             }
             // new connected component
             cclabel.at<unsigned>(y,x) = ccCount ++;
-            cclabel.push_back(new connected_component(ccCount));
+            cclabel.push_back(new drwnConnectedComponent(ccCount));
         }
     }
     // sort all connected components with its magnitude
-    std::list<connected_component> sortlist (cclist.begin(), cclist.end());
+    std::list<drwnConnectedComponent> sortlist (cclist.begin(), cclist.end());
     sortlist.sort (connectedComponentCompare);
-    cclist = std::vector<connected_component>(sortlist.begin(), sortlist.end());
+    cclist = std::vector<drwnConnectedComponent>(sortlist.begin(), sortlist.end());
     // merge smallest component to its nearest connected component
     // DRWN_ASSERT (nCluster > cclist.size());
     for (int i = nCluster; i < cclist.size(); i ++) {
@@ -355,4 +362,5 @@ void slic (const cv::Mat imgLab, cv::Mat label, const int nCluster, double thres
             label.at<unsigned>((*it).y, (*it).x) = i;
         }
     }
+
 }
